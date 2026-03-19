@@ -131,10 +131,12 @@ class TestMuJoCoServiceMock:
         assert isinstance(md, ModelData)
 
     def test_load_model_with_xml_counts_joints(self):
-        from app.services.mujoco_service import load_model
+        # Force the mock path so this test runs without a real MuJoCo model/XML.
+        import app.services.mujoco_service as _svc
+        from app.services.mujoco_service import _load_mock
 
         xml = "<mujoco><joint/><joint/><joint/></mujoco>"
-        md = load_model(xml)
+        md = _load_mock(xml)
         assert md.info.n_joints == 3
 
     def test_get_state_returns_dict_with_qpos(self):
@@ -259,22 +261,20 @@ class TestPhysicsPipelineState:
             model="test-model",
         )
 
+        # asyncio.coroutine was removed in Python 3.11; use a plain async def instead.
         async def fake_call(*args, **kwargs):
             return mock_response
 
-        mock_call_llm.return_value = asyncio.coroutine(fake_call)()
+        mock_call_llm.side_effect = fake_call
 
-        # patch asyncio.new_event_loop to run synchronously
-        real_loop = asyncio.new_event_loop()
-        with patch("agents.nodes.physics_agent.asyncio.new_event_loop", return_value=real_loop):
-            result = run_physics_step(
-                model_id="test-model-id",
-                observation={"qpos": [0.0, 0.0, 0.0], "qvel": [0.0, 0.0, 0.0], "time": 0.0, "step": 0},
-                n_actuators=3,
-                agent_config={},
-                step_count=0,
-                total_cost=0.0,
-            )
+        result = run_physics_step(
+            model_id="test-model-id",
+            observation={"qpos": [0.0, 0.0, 0.0], "qvel": [0.0, 0.0, 0.0], "time": 0.0, "step": 0},
+            n_actuators=3,
+            agent_config={},
+            step_count=0,
+            total_cost=0.0,
+        )
 
         assert "action" in result
         assert "reasoning" in result
@@ -346,43 +346,51 @@ class TestWorldModelAPI:
     """Integration-style tests for /api/world-models endpoints.
 
     DB interactions are mocked so these run without a real Postgres instance.
+    FastAPI's dependency_overrides mechanism is used so the override is
+    respected when the app resolves Depends(get_db) at request time.
     """
 
-    @pytest.fixture(autouse=True)
-    def _patch_db_and_celery(self):
-        """Replace DB session and Celery tasks with mocks for all tests."""
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
 
-        # Build a fake WorldModel ORM object
-        def _fake_wm(**kwargs):
-            wm = MagicMock()
-            wm.id = uuid.uuid4()
-            wm.name = kwargs.get("name", "Test")
-            wm.description = kwargs.get("description")
-            wm.model_type = kwargs.get("model_type", "custom")
-            wm.status = kwargs.get("status", "idle")
-            wm.total_steps = 0
-            wm.total_cost_usd = Decimal("0.000000")
-            wm.current_state = {}
-            wm.agent_config = kwargs.get("agent_config", {})
-            wm.mujoco_xml = kwargs.get("mujoco_xml")
-            from datetime import datetime
-            wm.created_at = datetime.utcnow()
-            wm.updated_at = datetime.utcnow()
-            wm.events = []
-            return wm
+    def _fake_wm(self, **kwargs):
+        """Build a fake WorldModel ORM-like object."""
+        wm = MagicMock()
+        wm.id = uuid.uuid4()
+        wm.name = kwargs.get("name", "Test")
+        wm.description = kwargs.get("description")
+        wm.model_type = kwargs.get("model_type", "custom")
+        wm.status = kwargs.get("status", "idle")
+        wm.total_steps = 0
+        wm.total_cost_usd = Decimal("0.000000")
+        wm.current_state = {}
+        wm.agent_config = kwargs.get("agent_config", {})
+        wm.mujoco_xml = kwargs.get("mujoco_xml")
+        from datetime import datetime
+        wm.created_at = datetime.utcnow()
+        wm.updated_at = datetime.utcnow()
+        wm.events = []
+        return wm
 
-        self._fake_wm = _fake_wm
-
-        # Patch get_db to yield a mock async session
+    def _make_mock_session(self, execute_result=None):
+        """Return a mock async session whose execute() returns execute_result."""
         mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=False)
         mock_session.flush = AsyncMock()
         mock_session.commit = AsyncMock()
         mock_session.rollback = AsyncMock()
         mock_session.delete = AsyncMock()
+        mock_session.add = MagicMock()
+        if execute_result is not None:
+            mock_session.execute = AsyncMock(return_value=execute_result)
+        return mock_session
 
-        async def fake_get_db():
+    def _client_with_db(self, mock_session):
+        """Return (app, TestClient) with get_db overridden to yield mock_session."""
+        from app.main import app
+        from app.core.database import get_db
+
+        async def _override():
             try:
                 yield mock_session
                 await mock_session.commit()
@@ -390,168 +398,199 @@ class TestWorldModelAPI:
                 await mock_session.rollback()
                 raise
 
-        self._mock_session = mock_session
+        app.dependency_overrides[get_db] = _override
+        try:
+            client = TestClient(app)
+            return app, client
+        finally:
+            app.dependency_overrides.pop(get_db, None)
 
-        with patch("app.api.world_model.get_db", return_value=fake_get_db()):
-            yield
-
-    def _make_client(self):
-        from app.main import app
-        return TestClient(app)
+    # ------------------------------------------------------------------
+    # Tests
+    # ------------------------------------------------------------------
 
     def test_create_world_model_returns_201(self):
         from app.main import app
+        from app.core.database import get_db
+        from datetime import datetime
 
-        wm = self._fake_wm(name="UAV Lab")
+        mock_session = self._make_mock_session()
 
-        async def fake_execute(q):
-            r = MagicMock()
-            r.scalar_one_or_none.return_value = wm
-            r.scalars.return_value.all.return_value = [wm]
-            return r
+        # Capture the ORM object passed to session.add() so we can populate
+        # the server-assigned fields (id, timestamps) that flush would normally set.
+        added_objects = []
 
-        self._mock_session.execute = fake_execute
-        self._mock_session.add = MagicMock()
+        def _capture_add(obj):
+            added_objects.append(obj)
 
-        with patch("app.api.world_model.get_db") as mock_gdb:
-            async def _get_db_gen():
-                try:
-                    yield self._mock_session
-                    await self._mock_session.commit()
-                except Exception:
-                    await self._mock_session.rollback()
-                    raise
+        mock_session.add = _capture_add
 
-            mock_gdb.return_value = _get_db_gen()
+        async def _fake_flush():
+            for obj in added_objects:
+                # Always set — Column descriptors are truthy even when no value
+                obj.id = uuid.uuid4()
+                obj.total_steps = 0
+                obj.total_cost_usd = Decimal("0.000000")
+                obj.created_at = datetime.utcnow()
+                obj.updated_at = datetime.utcnow()
+                obj.status = getattr(obj, "_status_value", None) or "idle"
 
+        mock_session.flush = _fake_flush
+
+        async def _override():
+            try:
+                yield mock_session
+                await mock_session.commit()
+            except Exception:
+                await mock_session.rollback()
+                raise
+
+        app.dependency_overrides[get_db] = _override
+        try:
             with TestClient(app) as client:
                 resp = client.post(
                     "/api/world-models",
                     json={"name": "UAV Lab", "model_type": "crazyflie"},
                 )
-        # Either 201 (success) or 422 (validation) are valid outcomes here;
-        # we primarily check the endpoint is reachable.
-        assert resp.status_code in (201, 422, 500)
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert resp.status_code == 201
 
     def test_list_world_models_endpoint_exists(self):
         from app.main import app
+        from app.core.database import get_db
 
-        with TestClient(app) as client:
-            # With no real DB this will error at DB level; we just confirm routing
-            resp = client.get("/api/world-models")
-            assert resp.status_code != 404
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session = self._make_mock_session()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        mock_session.scalar = AsyncMock(return_value=0)
+
+        async def _override():
+            try:
+                yield mock_session
+                await mock_session.commit()
+            except Exception:
+                await mock_session.rollback()
+                raise
+
+        app.dependency_overrides[get_db] = _override
+        try:
+            with TestClient(app) as client:
+                resp = client.get("/api/world-models")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
+        assert resp.status_code != 404
 
     def test_get_world_model_not_found_returns_404(self):
         from app.main import app
+        from app.core.database import get_db
 
         nonexistent_id = "00000000-0000-0000-0000-000000000099"
 
-        async def fake_execute(q):
-            r = MagicMock()
-            r.scalar_one_or_none.return_value = None
-            return r
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session = self._make_mock_session(execute_result=mock_result)
 
-        self._mock_session.execute = fake_execute
+        async def _override():
+            try:
+                yield mock_session
+                await mock_session.commit()
+            except Exception:
+                await mock_session.rollback()
+                raise
 
-        with patch("app.api.world_model.get_db") as mock_gdb:
-            async def _get_db_gen():
-                try:
-                    yield self._mock_session
-                    await self._mock_session.commit()
-                except Exception:
-                    await self._mock_session.rollback()
-                    raise
-
-            mock_gdb.return_value = _get_db_gen()
-
+        app.dependency_overrides[get_db] = _override
+        try:
             with TestClient(app) as client:
                 resp = client.get(f"/api/world-models/{nonexistent_id}")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
 
         assert resp.status_code == 404
 
     def test_delete_world_model_not_found_returns_404(self):
         from app.main import app
+        from app.core.database import get_db
 
         nonexistent_id = "00000000-0000-0000-0000-000000000099"
 
-        async def fake_execute(q):
-            r = MagicMock()
-            r.scalar_one_or_none.return_value = None
-            return r
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session = self._make_mock_session(execute_result=mock_result)
 
-        self._mock_session.execute = fake_execute
+        async def _override():
+            try:
+                yield mock_session
+                await mock_session.commit()
+            except Exception:
+                await mock_session.rollback()
+                raise
 
-        with patch("app.api.world_model.get_db") as mock_gdb:
-            async def _get_db_gen():
-                try:
-                    yield self._mock_session
-                    await self._mock_session.commit()
-                except Exception:
-                    await self._mock_session.rollback()
-                    raise
-
-            mock_gdb.return_value = _get_db_gen()
-
+        app.dependency_overrides[get_db] = _override
+        try:
             with TestClient(app) as client:
                 resp = client.delete(f"/api/world-models/{nonexistent_id}")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
 
         assert resp.status_code == 404
 
     def test_pause_non_running_returns_409(self):
         from app.main import app
+        from app.core.database import get_db
 
         model_id = str(uuid.uuid4())
         idle_wm = self._fake_wm(status="idle")
 
-        async def fake_execute(q):
-            r = MagicMock()
-            r.scalar_one_or_none.return_value = idle_wm
-            return r
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = idle_wm
+        mock_session = self._make_mock_session(execute_result=mock_result)
 
-        self._mock_session.execute = fake_execute
+        async def _override():
+            try:
+                yield mock_session
+                await mock_session.commit()
+            except Exception:
+                await mock_session.rollback()
+                raise
 
-        with patch("app.api.world_model.get_db") as mock_gdb:
-            async def _get_db_gen():
-                try:
-                    yield self._mock_session
-                    await self._mock_session.commit()
-                except Exception:
-                    await self._mock_session.rollback()
-                    raise
-
-            mock_gdb.return_value = _get_db_gen()
-
+        app.dependency_overrides[get_db] = _override
+        try:
             with TestClient(app) as client:
                 resp = client.post(f"/api/world-models/{model_id}/pause")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
 
         assert resp.status_code == 409
 
     def test_start_already_running_returns_409(self):
         from app.main import app
+        from app.core.database import get_db
 
         model_id = str(uuid.uuid4())
         running_wm = self._fake_wm(status="running")
 
-        async def fake_execute(q):
-            r = MagicMock()
-            r.scalar_one_or_none.return_value = running_wm
-            return r
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = running_wm
+        mock_session = self._make_mock_session(execute_result=mock_result)
 
-        self._mock_session.execute = fake_execute
+        async def _override():
+            try:
+                yield mock_session
+                await mock_session.commit()
+            except Exception:
+                await mock_session.rollback()
+                raise
 
-        with patch("app.api.world_model.get_db") as mock_gdb:
-            async def _get_db_gen():
-                try:
-                    yield self._mock_session
-                    await self._mock_session.commit()
-                except Exception:
-                    await self._mock_session.rollback()
-                    raise
-
-            mock_gdb.return_value = _get_db_gen()
-
+        app.dependency_overrides[get_db] = _override
+        try:
             with TestClient(app) as client:
                 resp = client.post(f"/api/world-models/{model_id}/start")
+        finally:
+            app.dependency_overrides.pop(get_db, None)
 
         assert resp.status_code == 409
 
