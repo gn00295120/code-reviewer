@@ -53,3 +53,10 @@ export interface AgentState {
   tokens: number;
   cost_usd: number;
 }
+
+export interface ReviewEvent {
+  id: string;
+  event_type: string;
+  event_data: Record<string, unknown>;
+  timestamp: string;
+}

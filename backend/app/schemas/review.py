@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl  # noqa: F401
 
 
 # --- Request schemas ---
@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, HttpUrl
 class ReviewCreate(BaseModel):
     pr_url: str = Field(..., description="GitHub PR URL", examples=["https://github.com/owner/repo/pull/123"])
     config: dict = Field(default_factory=dict, description="Optional review configuration overrides")
+    template_id: UUID | None = Field(None, description="Optional review template ID; its rules are merged into config")
 
 
 class WebhookPayload(BaseModel):
@@ -63,3 +64,12 @@ class ReviewDetailResponse(ReviewResponse):
 class ReviewListResponse(BaseModel):
     items: list[ReviewResponse]
     total: int
+
+
+class ReviewEventResponse(BaseModel):
+    id: UUID
+    event_type: str
+    event_data: dict
+    timestamp: datetime
+
+    model_config = {"from_attributes": True}

@@ -193,3 +193,18 @@ class PheromoneTrail(Base):
     shared_state = Column(JSONB, default=dict)
     updated_by = Column(UUID(as_uuid=True), nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Historical Replay
+# ---------------------------------------------------------------------------
+
+
+class ReviewEvent(Base):
+    __tablename__ = "review_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    review_id = Column(UUID(as_uuid=True), ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False)
+    event_type = Column(String(64), nullable=False)  # review:started, review:agent:started, etc.
+    event_data = Column(JSONB, default=dict)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)

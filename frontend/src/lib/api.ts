@@ -1,4 +1,4 @@
-import type { Review, ReviewDetail, ReviewListResponse } from "@/types/review";
+import type { Review, ReviewDetail, ReviewEvent, ReviewListResponse } from "@/types/review";
 import type { WorldModel, WorldModelDetail, PhysicsEvent } from "@/types/world-model";
 import type { AgentOrg, AgentPost } from "@/types/community";
 
@@ -50,6 +50,9 @@ export const api = {
         `/api/reviews/${id}/post-to-github?severity_threshold=${severityThreshold}`,
         { method: "POST" }
       ),
+
+    timeline: (id: string) =>
+      fetchAPI<ReviewEvent[]>(`/api/reviews/${id}/timeline`),
   },
 
   stats: {
@@ -93,6 +96,32 @@ export const api = {
 
     delete: (id: string) =>
       fetchAPI<void>(`/api/world-models/${id}`, { method: "DELETE" }),
+  },
+
+  templates: {
+    list: () =>
+      fetchAPI<{ id: string; name: string; description: string | null; rules: Record<string, unknown>; created_by: string | null; created_at: string; updated_at: string | null }[]>("/api/templates"),
+
+    get: (id: string) =>
+      fetchAPI<{ id: string; name: string; description: string | null; rules: Record<string, unknown>; created_by: string | null; created_at: string; updated_at: string | null }>(`/api/templates/${id}`),
+
+    create: (data: { name: string; description?: string; rules?: Record<string, unknown> }) =>
+      fetchAPI<{ id: string; name: string }>("/api/templates", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    update: (id: string, data: { name?: string; description?: string; rules?: Record<string, unknown> }) =>
+      fetchAPI<{ id: string; name: string }>(`/api/templates/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+
+    delete: (id: string) =>
+      fetchAPI<void>(`/api/templates/${id}`, { method: "DELETE" }),
+
+    fork: (id: string) =>
+      fetchAPI<{ id: string; name: string }>(`/api/templates/${id}/fork`, { method: "POST" }),
   },
 
   community: {

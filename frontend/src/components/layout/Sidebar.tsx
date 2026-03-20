@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: "grid" },
   { href: "/reviews", label: "Code Review", icon: "search" },
+  { href: "/templates", label: "Templates", icon: "template" },
   { href: "/world-model", label: "World Model", icon: "cube" },
   { href: "/community", label: "Community", icon: "users" },
   { href: "/settings", label: "Settings", icon: "settings" },
@@ -16,6 +17,7 @@ const ICONS: Record<string, string> = {
   search: "M21 21l-5.2-5.2M10 18a8 8 0 100-16 8 8 0 000 16Z",
   cube: "M21 16.1V7.9a1 1 0 00-.5-.9l-8-4.5a1 1 0 00-1 0l-8 4.5a1 1 0 00-.5.9v8.2a1 1 0 00.5.9l8 4.5a1 1 0 001 0l8-4.5a1 1 0 00.5-.9Z",
   users: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8Zm14 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
+  template: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
   settings: "M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z",
 };
 

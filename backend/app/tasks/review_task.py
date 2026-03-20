@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.celery_app import celery_app
 from app.core.config import get_settings
-from app.core.models import CodeReview, ReviewFinding
+from app.core.models import CodeReview, ReviewEvent, ReviewFinding
 from app.services.github_service import fetch_pr_diff
 from app.services.queue_manager import enqueue_review, dequeue_review
 
@@ -19,14 +19,27 @@ sync_engine = create_engine(settings.database_url_sync)
 redis_client = redis.from_url(settings.redis_url, decode_responses=True)
 
 
+def save_review_event(review_id: str, event_type: str, event_data: dict):
+    """Persist a review event to the database for historical replay."""
+    with Session(sync_engine) as db:
+        event = ReviewEvent(
+            review_id=uuid_mod.UUID(review_id),
+            event_type=event_type,
+            event_data=event_data,
+        )
+        db.add(event)
+        db.commit()
+
+
 def publish_ws_event(review_id: str, event: str, data: dict):
-    """Publish WebSocket event via Redis pub/sub."""
+    """Publish WebSocket event via Redis pub/sub and persist to DB."""
     payload = json.dumps({
         "room": f"review:{review_id}",
         "event": event,
         "data": data,
     })
     redis_client.publish("ws:events", payload)
+    save_review_event(review_id, event, data)
 
 
 @celery_app.task(bind=True, name="review.run")
