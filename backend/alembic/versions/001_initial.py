@@ -17,10 +17,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Enum types
-    op.execute("CREATE TYPE review_status AS ENUM ('pending', 'running', 'completed', 'failed', 'cancelled')")
-    op.execute("CREATE TYPE finding_severity AS ENUM ('high', 'medium', 'low', 'info')")
-
     # code_reviews
     op.create_table(
         "code_reviews",
@@ -28,10 +24,10 @@ def upgrade() -> None:
         sa.Column("pr_url", sa.String(512), nullable=False),
         sa.Column("repo_name", sa.String(256), nullable=False),
         sa.Column("pr_number", sa.Integer, nullable=True),
-        sa.Column("status", sa.Enum("pending", "running", "completed", "failed", "cancelled", name="review_status", create_type=False), default="pending", nullable=False),
+        sa.Column("status", sa.String(20), default="pending", nullable=False),
         sa.Column("total_issues", sa.Integer, default=0),
         sa.Column("total_cost_usd", sa.Numeric(10, 6), default=0),
-        sa.Column("config", JSONB, default={}),
+        sa.Column("config", JSONB, server_default="{}"),
         sa.Column("error_message", sa.Text, nullable=True),
         sa.Column("started_at", sa.DateTime, nullable=True),
         sa.Column("completed_at", sa.DateTime, nullable=True),
@@ -47,7 +43,7 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
         sa.Column("review_id", UUID(as_uuid=True), sa.ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False),
         sa.Column("agent_role", sa.String(64), nullable=False),
-        sa.Column("severity", sa.Enum("high", "medium", "low", "info", name="finding_severity", create_type=False), nullable=False),
+        sa.Column("severity", sa.String(20), nullable=False),
         sa.Column("file_path", sa.String(512), nullable=False),
         sa.Column("line_number", sa.Integer, nullable=True),
         sa.Column("title", sa.String(256), nullable=False),
@@ -67,7 +63,7 @@ def upgrade() -> None:
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
         sa.Column("name", sa.String(128), nullable=False, unique=True),
         sa.Column("description", sa.Text, nullable=True),
-        sa.Column("rules", JSONB, default={}),
+        sa.Column("rules", JSONB, server_default="{}"),
         sa.Column("created_by", sa.String(128), nullable=True),
         sa.Column("created_at", sa.DateTime, nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime, server_default=sa.func.now()),
@@ -78,5 +74,3 @@ def downgrade() -> None:
     op.drop_table("review_templates")
     op.drop_table("review_findings")
     op.drop_table("code_reviews")
-    op.execute("DROP TYPE finding_severity")
-    op.execute("DROP TYPE review_status")

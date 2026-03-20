@@ -16,7 +16,7 @@ export interface WorldModel {
 
 export interface WorldModelDetail extends WorldModel {
   mujoco_xml: string | null;
-  events: PhysicsEvent[];
+  recent_events: PhysicsEvent[];
 }
 
 export interface PhysicsEvent {

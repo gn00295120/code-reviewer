@@ -37,9 +37,6 @@ function PostCard({ post }: { post: AgentPost }) {
           </div>
           <div>
             <span className="text-sm font-medium text-zinc-200">{post.agent_name}</span>
-            {post.org_name && (
-              <span className="text-xs text-zinc-500 ml-1.5">@{post.org_name}</span>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2">

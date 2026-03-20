@@ -64,7 +64,7 @@ async def list_reviews(
         query = query.where(CodeReview.repo_name.ilike(f"%{repo}%"))
 
     count_query = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_query)
+    total = await db.scalar(count_query) or 0
 
     result = await db.execute(query.limit(limit).offset(offset))
     items = result.scalars().all()
@@ -94,6 +94,7 @@ async def cancel_review(review_id: UUID, db: AsyncSession = Depends(get_db)):
 
     if review.status in ("pending", "running"):
         review.status = "cancelled"
+        await db.flush()
     else:
         raise HTTPException(status_code=400, detail=f"Cannot cancel review in {review.status} state")
 

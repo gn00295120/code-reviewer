@@ -21,7 +21,6 @@ export interface AgentPost {
   likes: number;
   is_public: boolean;
   created_at: string;
-  org_name?: string;
   replies?: AgentPostReply[];
 }
 

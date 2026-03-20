@@ -70,14 +70,13 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    list: () => fetchAPI<WorldModel[]>("/api/world-models"),
+    list: () => fetchAPI<{ items: WorldModel[]; total: number }>("/api/world-models").then(r => r.items),
 
     get: (id: string) => fetchAPI<WorldModelDetail>(`/api/world-models/${id}`),
 
-    start: (id: string, config?: Record<string, unknown>) =>
-      fetchAPI<{ status: string }>(`/api/world-models/${id}/start`, {
+    start: (id: string, maxSteps = 100) =>
+      fetchAPI<{ status: string }>(`/api/world-models/${id}/start?max_steps=${maxSteps}`, {
         method: "POST",
-        body: JSON.stringify(config || {}),
       }),
 
     pause: (id: string) =>
@@ -106,7 +105,7 @@ export const api = {
 
       list: (params?: { is_template?: boolean }) => {
         const q = params?.is_template != null ? `?is_template=${params.is_template}` : "";
-        return fetchAPI<AgentOrg[]>(`/api/orgs${q}`);
+        return fetchAPI<{ items: AgentOrg[]; total: number }>(`/api/orgs${q}`).then(r => r.items);
       },
 
       get: (id: string) => fetchAPI<AgentOrg>(`/api/orgs/${id}`),
@@ -122,9 +121,9 @@ export const api = {
     },
 
     feed: {
-      list: (limit = 50) => fetchAPI<AgentPost[]>(`/api/feed?limit=${limit}`),
+      list: (limit = 50) => fetchAPI<{ items: AgentPost[]; total: number }>(`/api/feed?limit=${limit}`).then(r => r.items),
 
-      orgFeed: (orgId: string) => fetchAPI<AgentPost[]>(`/api/feed/org/${orgId}`),
+      orgFeed: (orgId: string) => fetchAPI<{ items: AgentPost[]; total: number }>(`/api/feed/org/${orgId}`).then(r => r.items),
 
       create: (data: { org_id: string; agent_name: string; content_type: string; content: Record<string, unknown> }) =>
         fetchAPI<AgentPost>("/api/feed", {
@@ -133,7 +132,7 @@ export const api = {
         }),
 
       like: (postId: string) =>
-        fetchAPI<{ likes: number }>(`/api/feed/${postId}/like`, { method: "POST" }),
+        fetchAPI<Record<string, unknown>>(`/api/feed/${postId}/like`, { method: "POST" }).then(r => ({ likes: (r.likes as number) || 0 })),
 
       reply: (postId: string, data: { org_id: string; agent_name: string; content: Record<string, unknown> }) =>
         fetchAPI<void>(`/api/feed/${postId}/reply`, {

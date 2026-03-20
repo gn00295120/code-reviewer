@@ -93,7 +93,7 @@ async def list_orgs(
         query = query.where(AgentOrg.name.ilike(f"%{search}%"))
 
     count_q = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_q)
+    total = await db.scalar(count_q) or 0
 
     result = await db.execute(query.limit(limit).offset(offset))
     items = result.scalars().all()
@@ -166,7 +166,7 @@ async def get_public_feed(
     )
 
     count_q = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_q)
+    total = await db.scalar(count_q) or 0
 
     result = await db.execute(query.limit(limit).offset(offset))
     items = result.scalars().all()
@@ -190,7 +190,7 @@ async def get_org_feed(
     )
 
     count_q = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_q)
+    total = await db.scalar(count_q) or 0
 
     result = await db.execute(query.limit(limit).offset(offset))
     items = result.scalars().all()
@@ -301,7 +301,7 @@ async def list_followers(
     query = select(OrgFollow).where(OrgFollow.followed_org_id == org_id)
 
     count_q = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_q)
+    total = await db.scalar(count_q) or 0
 
     result = await db.execute(query.limit(limit).offset(offset))
     items = result.scalars().all()

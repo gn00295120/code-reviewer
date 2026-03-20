@@ -81,7 +81,7 @@ async def list_world_models(
         query = query.where(WorldModel.model_type == model_type)
 
     count_q = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_q)
+    total = await db.scalar(count_q) or 0
 
     result = await db.execute(query.limit(limit).offset(offset))
     items = result.scalars().all()
@@ -234,7 +234,7 @@ async def list_events(
     )
 
     count_q = select(func.count()).select_from(query.subquery())
-    total = await db.scalar(count_q)
+    total = await db.scalar(count_q) or 0
 
     result = await db.execute(query.limit(limit).offset(offset))
     items = result.scalars().all()

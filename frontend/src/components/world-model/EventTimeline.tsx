@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export function EventTimeline() {
   const { liveEvents, currentModel, setReplayStep, replayStep } = useWorldModelStore();
 
-  const events = currentModel?.events?.length ? currentModel.events : liveEvents;
+  const events = currentModel?.recent_events?.length ? currentModel.recent_events : liveEvents;
   const displayEvents = [...events].reverse().slice(0, 100);
 
   return (

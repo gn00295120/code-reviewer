@@ -18,12 +18,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Enum types
-    op.execute(
-        "CREATE TYPE world_model_status AS ENUM "
-        "('idle', 'running', 'paused', 'completed', 'error')"
-    )
-
     # world_models
     op.create_table(
         "world_models",
@@ -36,20 +30,7 @@ def upgrade() -> None:
         sa.Column("agent_config", JSONB, server_default="{}"),
         sa.Column("total_steps", sa.Integer, server_default="0", nullable=False),
         sa.Column("total_cost_usd", sa.Numeric(10, 6), server_default="0", nullable=False),
-        sa.Column(
-            "status",
-            sa.Enum(
-                "idle",
-                "running",
-                "paused",
-                "completed",
-                "error",
-                name="world_model_status",
-                create_type=False,
-            ),
-            server_default="idle",
-            nullable=False,
-        ),
+        sa.Column("status", sa.String(20), server_default="idle", nullable=False),
         sa.Column("created_at", sa.DateTime, nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime, nullable=False, server_default=sa.func.now()),
     )
@@ -83,4 +64,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("physics_events")
     op.drop_table("world_models")
-    op.execute("DROP TYPE world_model_status")
