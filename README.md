@@ -1,5 +1,10 @@
 # SwarmForge
 
+[![CI](https://github.com/longweiwang/code-reviewer/actions/workflows/ci.yml/badge.svg)](https://github.com/longweiwang/code-reviewer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
+
 **Command Center IDE** — Visual, forkable Agent Command Center with enterprise-grade AI code review.
 
 ## Modules
@@ -70,6 +75,18 @@ make test        # Run all tests
 make lint        # Run linters
 make logs        # Tail Docker logs
 ```
+
+## Contributing
+
+Contributions are welcome. Please follow these steps:
+
+1. Fork the repository and create a feature branch from `main`.
+2. Install dependencies and confirm the test suite passes locally (`make test`).
+3. Write or update tests to cover your changes — the CI pipeline enforces this.
+4. Open a pull request against `main`. The CI jobs (backend tests + frontend build) must be green before review.
+5. A maintainer will review and merge. For large changes, open an issue first to discuss the approach.
+
+Please follow the existing code style and keep commits focused and conventional (e.g. `feat:`, `fix:`, `docs:`).
 
 ## License
 

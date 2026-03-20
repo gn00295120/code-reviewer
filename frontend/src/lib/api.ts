@@ -1,6 +1,11 @@
 import type { Review, ReviewDetail, ReviewEvent, ReviewListResponse } from "@/types/review";
 import type { WorldModel, WorldModelDetail, PhysicsEvent } from "@/types/world-model";
 import type { AgentOrg, AgentPost } from "@/types/community";
+import type { AuditLog, SecurityPolicy } from "@/types/enterprise";
+import type { MarketplaceListing } from "@/types/marketplace";
+import type { AgentCompany, CompanyAgent } from "@/types/company";
+import type { Proposal, Vote } from "@/types/governance";
+import type { Experiment, ExperimentRun } from "@/types/science";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -122,6 +127,190 @@ export const api = {
 
     fork: (id: string) =>
       fetchAPI<{ id: string; name: string }>(`/api/templates/${id}/fork`, { method: "POST" }),
+  },
+
+  memory: {
+    list: (params?: { agent_role?: string; memory_type?: string; limit?: number; offset?: number }) => {
+      const sp = new URLSearchParams();
+      if (params?.agent_role) sp.set("agent_role", params.agent_role);
+      if (params?.memory_type) sp.set("memory_type", params.memory_type);
+      if (params?.limit != null) sp.set("limit", String(params.limit));
+      if (params?.offset != null) sp.set("offset", String(params.offset));
+      const q = sp.toString();
+      return fetchAPI<{ items: Record<string, unknown>[]; total: number }>(`/api/memory${q ? `?${q}` : ""}`);
+    },
+
+    get: (id: string) =>
+      fetchAPI<Record<string, unknown>>(`/api/memory/${id}`),
+
+    create: (data: Record<string, unknown>) =>
+      fetchAPI<Record<string, unknown>>("/api/memory", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    delete: (id: string) =>
+      fetchAPI<void>(`/api/memory/${id}`, { method: "DELETE" }),
+
+    search: (q: string) =>
+      fetchAPI<{ items: Record<string, unknown>[]; total: number }>(`/api/memory/search?q=${encodeURIComponent(q)}`),
+
+    consolidate: () =>
+      fetchAPI<{ consolidated: number }>("/api/memory/consolidate", { method: "POST" }),
+  },
+
+  enterprise: {
+    auditLogs: (params?: { action?: string; from?: string; to?: string; limit?: number; offset?: number }) => {
+      const sp = new URLSearchParams();
+      if (params?.action) sp.set("action", params.action);
+      if (params?.from) sp.set("from", params.from);
+      if (params?.to) sp.set("to", params.to);
+      if (params?.limit != null) sp.set("limit", String(params.limit));
+      if (params?.offset != null) sp.set("offset", String(params.offset));
+      const q = sp.toString();
+      return fetchAPI<{ items: AuditLog[]; total: number }>(`/api/enterprise/audit-logs${q ? `?${q}` : ""}`);
+    },
+
+    policies: {
+      list: () =>
+        fetchAPI<SecurityPolicy[]>("/api/enterprise/policies"),
+
+      create: (data: { name: string; policy_type: string; config: Record<string, unknown> }) =>
+        fetchAPI<SecurityPolicy>("/api/enterprise/policies", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+
+      update: (id: string, data: Partial<{ name: string; config: Record<string, unknown> }>) =>
+        fetchAPI<SecurityPolicy>(`/api/enterprise/policies/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(data),
+        }),
+
+      toggle: (id: string, is_active: boolean) =>
+        fetchAPI<SecurityPolicy>(`/api/enterprise/policies/${id}/toggle`, {
+          method: "POST",
+          body: JSON.stringify({ is_active }),
+        }),
+    },
+  },
+
+  marketplace: {
+    browse: (params?: { type?: string; sort?: string; q?: string; limit?: number; offset?: number }) => {
+      const sp = new URLSearchParams();
+      if (params?.type) sp.set("type", params.type);
+      if (params?.sort) sp.set("sort", params.sort);
+      if (params?.q) sp.set("q", params.q);
+      if (params?.limit != null) sp.set("limit", String(params.limit));
+      if (params?.offset != null) sp.set("offset", String(params.offset));
+      const q = sp.toString();
+      return fetchAPI<{ items: MarketplaceListing[]; total: number }>(`/api/marketplace${q ? `?${q}` : ""}`);
+    },
+
+    get: (id: string) =>
+      fetchAPI<MarketplaceListing>(`/api/marketplace/${id}`),
+
+    publish: (data: { listing_type: string; title: string; description: string; version: string; tags: string[]; config: Record<string, unknown> }) =>
+      fetchAPI<MarketplaceListing>("/api/marketplace", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    install: (id: string) =>
+      fetchAPI<{ installed: boolean; local_id: string }>(`/api/marketplace/${id}/install`, { method: "POST" }),
+
+    rate: (id: string, stars: number) =>
+      fetchAPI<{ rating: number; rating_count: number }>(`/api/marketplace/${id}/rate`, {
+        method: "POST",
+        body: JSON.stringify({ stars }),
+      }),
+  },
+
+  companies: {
+    create: (data: { name: string; description?: string; budget_usd?: number }) =>
+      fetchAPI<AgentCompany>("/api/companies", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    list: () =>
+      fetchAPI<{ items: AgentCompany[]; total: number }>("/api/companies").then(r => r.items),
+
+    get: (id: string) => fetchAPI<AgentCompany>(`/api/companies/${id}`),
+
+    activate: (id: string) =>
+      fetchAPI<AgentCompany>(`/api/companies/${id}/activate`, { method: "POST" }),
+
+    pause: (id: string) =>
+      fetchAPI<AgentCompany>(`/api/companies/${id}/pause`, { method: "POST" }),
+
+    agents: {
+      list: (companyId: string) =>
+        fetchAPI<{ items: CompanyAgent[]; total: number }>(`/api/companies/${companyId}/agents`).then(r => r.items),
+
+      add: (companyId: string, data: Partial<CompanyAgent>) =>
+        fetchAPI<CompanyAgent>(`/api/companies/${companyId}/agents`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+
+      remove: (companyId: string, agentId: string) =>
+        fetchAPI<void>(`/api/companies/${companyId}/agents/${agentId}`, { method: "DELETE" }),
+    },
+
+    budget: (id: string) =>
+      fetchAPI<{ budget_usd: number; spent_usd: number; remaining_usd: number; per_agent: Record<string, number> }>(`/api/companies/${id}/budget`),
+  },
+
+  governance: {
+    proposals: {
+      list: (companyId: string) =>
+        fetchAPI<{ items: Proposal[]; total: number }>(`/api/companies/${companyId}/proposals`).then(r => r.items),
+
+      create: (companyId: string, data: Partial<Proposal>) =>
+        fetchAPI<Proposal>(`/api/companies/${companyId}/proposals`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+
+      get: (id: string) => fetchAPI<Proposal>(`/api/proposals/${id}`),
+    },
+
+    vote: (proposalId: string, data: { vote: "for" | "against" | "abstain"; reason?: string }) =>
+      fetchAPI<Vote>(`/api/proposals/${proposalId}/vote`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    execute: (proposalId: string) =>
+      fetchAPI<Proposal>(`/api/proposals/${proposalId}/execute`, { method: "POST" }),
+  },
+
+  science: {
+    experiments: {
+      list: () =>
+        fetchAPI<{ items: Experiment[]; total: number }>("/api/science/experiments").then(r => r.items),
+
+      create: (data: Partial<Experiment>) =>
+        fetchAPI<Experiment>("/api/science/experiments", {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+
+      get: (id: string) => fetchAPI<Experiment>(`/api/science/experiments/${id}`),
+    },
+
+    run: (experimentId: string) =>
+      fetchAPI<ExperimentRun>(`/api/science/experiments/${experimentId}/run`, { method: "POST" }),
+
+    analyze: (experimentId: string) =>
+      fetchAPI<Experiment>(`/api/science/experiments/${experimentId}/analyze`, { method: "POST" }),
+
+    publish: (experimentId: string) =>
+      fetchAPI<Experiment>(`/api/science/experiments/${experimentId}/publish`, { method: "POST" }),
+
+    runs: (experimentId: string) =>
+      fetchAPI<{ items: ExperimentRun[]; total: number }>(`/api/science/experiments/${experimentId}/runs`).then(r => r.items),
   },
 
   community: {

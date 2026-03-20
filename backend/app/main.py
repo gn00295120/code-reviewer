@@ -5,9 +5,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.community import router as community_router
+from app.api.company import router as company_router
+from app.api.enterprise import router as enterprise_router
+from app.api.governance import router as governance_router
+from app.api.governance import proposal_router
+from app.api.marketplace import router as marketplace_router
+from app.api.memory import router as memory_router
 from app.api.org_deploy import router as org_deploy_router
 from app.api.org_templates_api import router as org_templates_router
 from app.api.reviews import router as reviews_router
+from app.api.science import router as science_router
 from app.api.templates import router as templates_router
 from app.api.webhooks import router as webhooks_router
 from app.api.github_actions import router as github_actions_router
@@ -44,9 +51,16 @@ app.add_middleware(
 
 # Routes
 app.include_router(community_router)
+app.include_router(company_router)
+app.include_router(enterprise_router)
+app.include_router(governance_router)
+app.include_router(proposal_router)
+app.include_router(marketplace_router)
+app.include_router(memory_router)
 app.include_router(org_deploy_router)
 app.include_router(org_templates_router)
 app.include_router(reviews_router)
+app.include_router(science_router)
 app.include_router(templates_router)
 app.include_router(webhooks_router)
 app.include_router(github_actions_router)
