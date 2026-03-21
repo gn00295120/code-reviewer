@@ -26,6 +26,7 @@ class CodeReview(Base):
     pr_url = Column(String(512), nullable=False)
     repo_name = Column(String(256), nullable=False)
     pr_number = Column(Integer, nullable=True)
+    platform = Column(String(20), nullable=False, default="github")
     status = Column(
         Enum("pending", "running", "completed", "failed", "cancelled", name="review_status"),
         default="pending",

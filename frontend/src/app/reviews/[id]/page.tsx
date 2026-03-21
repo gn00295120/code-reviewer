@@ -19,6 +19,7 @@ export default function ReviewDetailPage() {
   const params = useParams();
   const reviewId = params.id as string;
   const {
+    currentReview,
     setCurrentReview,
     setReviewStatus,
     updateCost,
@@ -112,6 +113,7 @@ export default function ReviewDetailPage() {
               <PostToGithubButton
                 reviewId={reviewId}
                 disabled={reviewStatus !== "completed"}
+                platform={currentReview?.platform}
               />
             </div>
           </div>

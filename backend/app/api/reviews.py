@@ -1,4 +1,3 @@
-import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -16,22 +15,23 @@ from app.schemas.review import (
     ReviewListResponse,
     ReviewResponse,
 )
+from app.services.vcs_provider import detect_platform, parse_vcs_url
 from app.tasks.review_task import run_review_task
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
 
-def parse_pr_url(pr_url: str) -> tuple[str, int]:
-    """Extract repo name and PR number from GitHub PR URL."""
-    match = re.match(r"https?://github\.com/([^/]+/[^/]+)/pull/(\d+)", pr_url)
-    if not match:
-        raise HTTPException(status_code=400, detail="Invalid GitHub PR URL format")
-    return match.group(1), int(match.group(2))
+def parse_pr_url(pr_url: str) -> tuple[str, int, str]:
+    """Extract repo name, PR/MR number, and platform from a VCS URL."""
+    try:
+        return parse_vcs_url(pr_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("", response_model=ReviewResponse, status_code=201)
 async def create_review(payload: ReviewCreate, db: AsyncSession = Depends(get_db)):
-    repo_name, pr_number = parse_pr_url(payload.pr_url)
+    repo_name, pr_number, platform = parse_pr_url(payload.pr_url)
 
     # Build config: start from caller-supplied config then layer template rules on top
     effective_config: dict = dict(payload.config)
@@ -49,6 +49,7 @@ async def create_review(payload: ReviewCreate, db: AsyncSession = Depends(get_db
         pr_url=payload.pr_url,
         repo_name=repo_name,
         pr_number=pr_number,
+        platform=platform,
         status="pending",
         config=effective_config,
     )
@@ -65,6 +66,7 @@ async def create_review(payload: ReviewCreate, db: AsyncSession = Depends(get_db
 async def list_reviews(
     status: str | None = Query(None),
     repo: str | None = Query(None),
+    platform: str | None = Query(None),
     limit: int = Query(20, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -75,6 +77,8 @@ async def list_reviews(
         query = query.where(CodeReview.status == status)
     if repo:
         query = query.where(CodeReview.repo_name.ilike(f"%{repo}%"))
+    if platform:
+        query = query.where(CodeReview.platform == platform)
 
     count_query = select(func.count()).select_from(query.subquery())
     total = await db.scalar(count_query) or 0

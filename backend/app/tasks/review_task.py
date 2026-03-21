@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.celery_app import celery_app
 from app.core.config import get_settings
 from app.core.models import CodeReview, ReviewEvent, ReviewFinding
-from app.services.github_service import fetch_pr_diff
+from app.services.vcs_provider import get_vcs_provider
 from app.services.queue_manager import enqueue_review, dequeue_review
 
 settings = get_settings()
@@ -76,7 +76,8 @@ def run_review_task(self, review_id: str):
                 "agent": "fetch_diff",
                 "status": "running",
             })
-            pr_diff = fetch_pr_diff(review.pr_url)
+            provider = get_vcs_provider(review.platform)
+            pr_diff = provider.fetch_pr_diff(review.pr_url)
             publish_ws_event(review_id, "review:agent:completed", {
                 "agent": "fetch_diff",
                 "files_count": len(pr_diff.files),

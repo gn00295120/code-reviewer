@@ -1,4 +1,4 @@
-"""API endpoint for posting review findings to GitHub as PR comments."""
+"""API endpoint for posting review findings to VCS platform as PR/MR comments."""
 
 from uuid import UUID
 
@@ -9,18 +9,18 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.models import CodeReview
-from app.services.github_service import post_inline_comments
+from app.services.vcs_provider import get_vcs_provider
 
 router = APIRouter(prefix="/api/reviews", tags=["github-actions"])
 
 
 @router.post("/{review_id}/post-to-github")
-async def post_findings_to_github(
+async def post_findings_to_platform(
     review_id: UUID,
     severity_threshold: str = "low",
     db: AsyncSession = Depends(get_db),
 ):
-    """Post review findings as inline comments on the GitHub PR.
+    """Post review findings as inline comments on the GitHub PR or GitLab MR.
 
     Args:
         review_id: The review to post findings from
@@ -63,8 +63,10 @@ async def post_findings_to_github(
     if not filtered:
         return {"posted": 0, "message": "No findings above severity threshold"}
 
+    platform_name = "GitLab" if review.platform == "gitlab" else "GitHub"
     try:
-        posted = post_inline_comments(review.pr_url, filtered)
-        return {"posted": posted, "message": f"Posted {posted} comments to GitHub"}
+        provider = get_vcs_provider(review.platform)
+        posted = provider.post_inline_comments(review.pr_url, filtered)
+        return {"posted": posted, "message": f"Posted {posted} comments to {platform_name}"}
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to post to GitHub: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Failed to post to {platform_name}: {str(e)}")

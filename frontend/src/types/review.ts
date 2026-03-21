@@ -1,12 +1,14 @@
 export type ReviewStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
 export type Severity = "high" | "medium" | "low" | "info";
 export type AgentRole = "logic" | "security" | "edge_case" | "convention" | "performance";
+export type Platform = "github" | "gitlab";
 
 export interface Review {
   id: string;
   pr_url: string;
   repo_name: string;
   pr_number: number | null;
+  platform: Platform;
   status: ReviewStatus;
   total_issues: number;
   total_cost_usd: number;

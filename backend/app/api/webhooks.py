@@ -54,6 +54,56 @@ async def github_webhook(
         pr_url=pr_url,
         repo_name=repo_name,
         pr_number=pr_number,
+        platform="github",
+        status="pending",
+    )
+    db.add(review)
+    await db.flush()
+
+    run_review_task.delay(str(review.id))
+
+    return {"status": "queued", "review_id": str(review.id)}
+
+
+@router.post("/gitlab")
+async def gitlab_webhook(
+    request: Request,
+    x_gitlab_token: str = Header(None),
+    x_gitlab_event: str = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    body = await request.body()
+
+    # GitLab uses a plain secret token (not HMAC) — use timing-safe comparison
+    if settings.gitlab_webhook_secret:
+        if not x_gitlab_token or not hmac.compare_digest(
+            x_gitlab_token, settings.gitlab_webhook_secret
+        ):
+            raise HTTPException(status_code=401, detail="Invalid GitLab webhook token")
+
+    if x_gitlab_event != "Merge Request Hook":
+        return {"status": "ignored", "reason": f"event: {x_gitlab_event}"}
+
+    payload = json.loads(body)
+    attrs = payload.get("object_attributes", {})
+    action = attrs.get("action")
+
+    if action not in ("open", "update", "reopen"):
+        return {"status": "ignored", "reason": f"action: {action}"}
+
+    try:
+        project = payload["project"]
+        pr_url = attrs["url"]
+        repo_name = project["path_with_namespace"]
+        mr_number = attrs["iid"]
+    except KeyError as e:
+        raise HTTPException(status_code=422, detail=f"Missing required field in payload: {e}")
+
+    review = CodeReview(
+        pr_url=pr_url,
+        repo_name=repo_name,
+        pr_number=mr_number,
+        platform="gitlab",
         status="pending",
     )
     db.add(review)

@@ -15,8 +15,10 @@ export function PRInputForm() {
     e.preventDefault();
     setError("");
 
-    if (!prUrl.match(/^https?:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/)) {
-      setError("Please enter a valid GitHub PR URL");
+    const isGitHub = /^https?:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+([/?#]|$)/.test(prUrl);
+    const isGitLab = !isGitHub && /^https?:\/\/[^/]+\/.+\/-\/merge_requests\/\d+([/?#]|$)/.test(prUrl);
+    if (!isGitHub && !isGitLab) {
+      setError("Please enter a valid GitHub PR or GitLab MR URL");
       return;
     }
 
@@ -38,7 +40,7 @@ export function PRInputForm() {
           type="url"
           value={prUrl}
           onChange={(e) => setPrUrl(e.target.value)}
-          placeholder="https://github.com/owner/repo/pull/123"
+          placeholder="GitHub PR or GitLab MR URL"
           className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <Button type="submit" disabled={loading || !prUrl} className="px-6">

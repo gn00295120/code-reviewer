@@ -56,9 +56,14 @@ export default function ReviewsPage() {
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-3">
+                      <span className="text-xs text-zinc-500 uppercase">
+                        {review.platform === "gitlab" ? "GL" : "GH"}
+                      </span>
                       <span className="text-sm font-medium text-zinc-200">{review.repo_name}</span>
                       {review.pr_number != null && (
-                        <span className="text-xs text-zinc-500">#{review.pr_number}</span>
+                        <span className="text-xs text-zinc-500">
+                          {review.platform === "gitlab" ? "!" : "#"}{review.pr_number}
+                        </span>
                       )}
                       <Badge variant="outline" className={STATUS_COLORS[review.status]}>
                         {review.status}

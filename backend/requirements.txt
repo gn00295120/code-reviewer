@@ -22,6 +22,9 @@ langgraph==0.2.60
 PyGithub==2.5.0
 httpx==0.28.1
 
+# GitLab
+python-gitlab==4.4.0
+
 # Utilities
 pydantic==2.10.4
 pydantic-settings==2.7.1

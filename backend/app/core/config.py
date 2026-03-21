@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     github_token: str = ""
     github_webhook_secret: str = ""
 
+    # GitLab
+    gitlab_token: str = ""
+    gitlab_webhook_secret: str = ""
+    gitlab_base_url: str = "https://gitlab.com"
+
     # LiteLLM
     litellm_proxy_url: str = "http://localhost:4000"
     litellm_master_key: str = "sk-litellm-master-key"
