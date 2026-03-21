@@ -1,4 +1,4 @@
-.PHONY: up down dev migrate test lint clean
+.PHONY: up down dev migrate test lint clean prod-build prod-up prod-down prod-logs prod-migrate prod-ps
 
 up:
 	docker compose up -d
@@ -40,3 +40,23 @@ lint: lint-backend lint-frontend
 clean:
 	docker compose down -v
 	rm -rf postgres_data redis_data
+
+# --- Production ---
+
+prod-build:
+	docker compose -f docker-compose.prod.yml build
+
+prod-up:
+	docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+
+prod-down:
+	docker compose -f docker-compose.prod.yml down
+
+prod-logs:
+	docker compose -f docker-compose.prod.yml logs -f
+
+prod-migrate:
+	docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+
+prod-ps:
+	docker compose -f docker-compose.prod.yml ps

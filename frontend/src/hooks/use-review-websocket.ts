@@ -4,7 +4,10 @@ import { useEffect, useRef, useCallback } from "react";
 import { useReviewStore } from "@/stores/review-store";
 import type { AgentRole, Finding, WSEvent } from "@/types/review";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL
+  || (typeof window !== "undefined"
+    ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`
+    : "ws://localhost:8000");
 const RECONNECT_DELAY = 3000;
 
 export function useReviewWebSocket(reviewId: string | null) {

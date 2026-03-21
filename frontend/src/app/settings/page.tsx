@@ -5,11 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
   const githubWebhookUrl = typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:8000/api/webhooks/github`
+    ? `${window.location.origin}/api/webhooks/github`
     : "http://localhost:8000/api/webhooks/github";
 
   const gitlabWebhookUrl = typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:8000/api/webhooks/gitlab`
+    ? `${window.location.origin}/api/webhooks/gitlab`
     : "http://localhost:8000/api/webhooks/gitlab";
 
   return (
