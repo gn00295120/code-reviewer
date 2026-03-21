@@ -21,7 +21,7 @@
 ```bash
 # 1. Configure
 cp .env.example .env
-# Edit .env: add GITHUB_TOKEN, ANTHROPIC_API_KEY
+# Edit .env: add GITHUB_TOKEN and/or GITLAB_TOKEN, ANTHROPIC_API_KEY
 
 # 2. Start infrastructure
 make up
@@ -36,6 +36,85 @@ cd frontend && npm run dev
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000/docs
 - **LiteLLM Proxy**: http://localhost:4000
+
+## Platform Support
+
+SwarmForge supports both **GitHub** and **GitLab** (including self-hosted instances).
+
+### GitHub Setup
+
+1. Set `GITHUB_TOKEN` in `.env` — a [Personal Access Token](https://github.com/settings/tokens) with `repo` scope.
+2. (Optional) Set `GITHUB_WEBHOOK_SECRET` for auto-triggering reviews on PR events.
+
+### GitLab Setup
+
+1. Set `GITLAB_TOKEN` in `.env` — a [Personal Access Token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) with `api` scope.
+2. (Optional) Set `GITLAB_WEBHOOK_SECRET` for auto-triggering reviews on MR events.
+3. Self-hosted GitLab works automatically — the platform is detected from the URL.
+
+### Manual Review
+
+Paste a PR/MR URL in the review input on the dashboard:
+
+```
+# GitHub
+https://github.com/owner/repo/pull/123
+
+# GitLab (gitlab.com)
+https://gitlab.com/group/project/-/merge_requests/456
+
+# GitLab (self-hosted)
+https://gitlab.company.com/team/project/-/merge_requests/789
+```
+
+### Webhook Auto-Trigger
+
+Configure webhooks so reviews start automatically when PRs/MRs are opened or updated.
+
+**GitHub** — Go to repo Settings → Webhooks → Add webhook:
+
+| Field | Value |
+|-------|-------|
+| Payload URL | `https://<your-host>:8000/api/webhooks/github` |
+| Content type | `application/json` |
+| Secret | Same as `GITHUB_WEBHOOK_SECRET` in `.env` |
+| Events | Select "Pull requests" |
+
+**GitLab** — Go to project Settings → Webhooks:
+
+| Field | Value |
+|-------|-------|
+| URL | `https://<your-host>:8000/api/webhooks/gitlab` |
+| Secret token | Same as `GITLAB_WEBHOOK_SECRET` in `.env` |
+| Trigger | Check "Merge request events" |
+
+### Post Results Back
+
+After a review completes, click **"Post to GitHub"** or **"Post to GitLab"** to send findings as inline comments on the PR/MR. You can also call the API directly:
+
+```bash
+curl -X POST http://localhost:8000/api/reviews/{review_id}/post-to-github?severity_threshold=medium
+```
+
+### API Examples
+
+```bash
+# Create a review (GitHub)
+curl -X POST http://localhost:8000/api/reviews \
+  -H "Content-Type: application/json" \
+  -d '{"pr_url": "https://github.com/owner/repo/pull/123"}'
+
+# Create a review (GitLab)
+curl -X POST http://localhost:8000/api/reviews \
+  -H "Content-Type: application/json" \
+  -d '{"pr_url": "https://gitlab.com/group/project/-/merge_requests/456"}'
+
+# List reviews (filter by platform)
+curl http://localhost:8000/api/reviews?platform=gitlab
+
+# Check review status
+curl http://localhost:8000/api/reviews/{review_id}
+```
 
 ## Architecture
 
@@ -60,7 +139,7 @@ Next.js 15 ──WebSocket──► FastAPI ──Celery──► LangGraph Pipe
 | Module | Endpoints |
 |--------|-----------|
 | Reviews | `POST/GET /api/reviews`, `POST /api/reviews/{id}/post-to-github` |
-| Webhooks | `POST /api/webhooks/github` |
+| Webhooks | `POST /api/webhooks/github`, `POST /api/webhooks/gitlab` |
 | World Models | `POST/GET /api/world-models`, `POST /{id}/start/pause/step/reset` |
 | Community | `POST/GET /api/orgs`, `POST /{id}/fork`, `GET /api/feed` |
 | Stats | `GET /api/stats/queue`, `GET /api/stats/overview` |
