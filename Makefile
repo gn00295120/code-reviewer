@@ -72,6 +72,6 @@ desktop-build:
 	cd desktop && npm run tauri:build
 
 desktop-backend:
-	cd backend && SWARMFORGE_DESKTOP_MODE=true \
+	cd backend && DESKTOP_MODE=true \
 		DATABASE_URL=sqlite+aiosqlite:///$${HOME}/.swarmforge/swarmforge.db \
 		python3 -m uvicorn app.main:app --port 8000 --reload

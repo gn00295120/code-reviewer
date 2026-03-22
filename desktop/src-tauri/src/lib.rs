@@ -66,7 +66,7 @@ async fn start_backend(state: State<'_, SidecarProcesses>) -> Result<String, Str
         let child = Command::new(&python)
             .args(["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"])
             .current_dir(root.join("backend"))
-            .env("SWARMFORGE_DESKTOP_MODE", "true")
+            .env("DESKTOP_MODE", "true")
             .env("DATABASE_URL", &db_url)
             .env("DATABASE_URL_SYNC", db_url.replace("sqlite+aiosqlite", "sqlite"))
             .env("CORS_ORIGINS", "tauri://localhost,http://localhost:3000")

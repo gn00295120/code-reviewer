@@ -22,7 +22,7 @@ from app.core.database import Base
 # Dialect shim: support both PostgreSQL and SQLite (desktop mode)
 # ---------------------------------------------------------------------------
 
-if _os.environ.get("SWARMFORGE_DESKTOP_MODE"):
+if _os.environ.get("DESKTOP_MODE"):
     from sqlalchemy import JSON as JSONB
     from sqlalchemy import String as _String
 
@@ -34,7 +34,7 @@ else:
 
 def _enum(*values, **kwargs):
     """Create Enum that works with both PostgreSQL and SQLite."""
-    if _os.environ.get("SWARMFORGE_DESKTOP_MODE"):
+    if _os.environ.get("DESKTOP_MODE"):
         kwargs.pop("name", None)
     return Enum(*values, **kwargs)
 
