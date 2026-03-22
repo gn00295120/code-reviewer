@@ -36,15 +36,34 @@ def review_group():
 @review_group.command("create")
 @click.argument("pr_url")
 @click.option("--template-id", default=None, help="UUID of a review template to apply.")
-def create(pr_url, template_id):
-    """Submit a PR/MR URL for review."""
-    payload = {"pr_url": pr_url}
-    if template_id:
-        payload["template_id"] = template_id
-    try:
-        _output(_run(client.post("/api/reviews", json=payload)))
-    except SwarmForgeError as e:
-        _handle_error(e)
+@click.option("--post", is_flag=True, default=False, help="Post findings as inline comments on the PR.")
+@click.option("--severity-threshold", default="low", help="Minimum severity to post (high/medium/low/info).")
+@click.option("--model", default="claude-sonnet-4-6-20250514", help="Anthropic model to use.")
+@click.option("--backend", is_flag=True, default=False, help="Force backend proxy mode (requires running backend).")
+def create(pr_url, template_id, post, severity_threshold, model, backend):
+    """Submit a PR/MR URL for review.
+
+    By default, runs standalone (no backend needed). Uses GITHUB_TOKEN and
+    ANTHROPIC_API_KEY environment variables directly.
+
+    Use --backend to route through the SwarmForge backend API instead.
+    """
+    if backend:
+        payload = {"pr_url": pr_url}
+        if template_id:
+            payload["template_id"] = template_id
+        try:
+            _output(_run(client.post("/api/reviews", json=payload)))
+        except SwarmForgeError as e:
+            _handle_error(e)
+    else:
+        from ..reviewer import run_standalone_review
+        run_standalone_review(
+            pr_url,
+            post=post,
+            severity_threshold=severity_threshold,
+            model=model,
+        )
 
 
 @review_group.command("list")
