@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import get_settings as _get_settings
 from app.core.database import get_db
 from app.core.models import CodeReview, ReviewEvent, ReviewFinding, ReviewTemplate
 from app.schemas.review import (
@@ -16,7 +17,10 @@ from app.schemas.review import (
     ReviewResponse,
 )
 from app.services.vcs_provider import detect_platform, parse_vcs_url
-from app.tasks.review_task import run_review_task
+
+_desktop = _get_settings().desktop_mode
+if not _desktop:
+    from app.tasks.review_task import run_review_task
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
@@ -56,8 +60,13 @@ async def create_review(payload: ReviewCreate, db: AsyncSession = Depends(get_db
     db.add(review)
     await db.flush()
 
-    # Enqueue Celery task
-    run_review_task.delay(str(review.id))
+    # Dispatch review task — in-process async task in desktop mode, Celery otherwise
+    if _desktop:
+        import asyncio
+        from app.services.desktop_runner import run_review_in_process
+        asyncio.create_task(run_review_in_process(str(review.id)))
+    else:
+        run_review_task.delay(str(review.id))
 
     return review
 

@@ -6,9 +6,10 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-# Configure LiteLLM to use proxy
-litellm.api_base = settings.litellm_proxy_url
-litellm.api_key = settings.litellm_master_key
+# Configure LiteLLM — use proxy in server mode, direct API calls in desktop mode
+if not settings.desktop_mode:
+    litellm.api_base = settings.litellm_proxy_url
+    litellm.api_key = settings.litellm_master_key
 
 
 @dataclass

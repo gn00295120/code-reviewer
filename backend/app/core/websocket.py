@@ -20,6 +20,8 @@ class WebSocketManager:
         self._pubsub_task: asyncio.Task | None = None
 
     async def startup(self):
+        if settings.desktop_mode:
+            return  # No Redis needed in desktop mode
         self._redis = aioredis.from_url(settings.redis_url, decode_responses=True)
         self._pubsub_task = asyncio.create_task(self._listen_redis())
 
@@ -50,8 +52,10 @@ class WebSocketManager:
             self._rooms[room].discard(ws)
 
     async def publish(self, room: str, event: str, data: Any):
-        """Publish event via Redis (for Celery workers to reach WS clients)."""
-        if self._redis:
+        """Publish event — direct broadcast in desktop mode, Redis pub/sub otherwise."""
+        if settings.desktop_mode:
+            await self.broadcast_to_room(room, event, data)
+        elif self._redis:
             payload = json.dumps({"room": room, "event": event, "data": data})
             await self._redis.publish("ws:events", payload)
 

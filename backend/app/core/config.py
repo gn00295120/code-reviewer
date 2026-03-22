@@ -1,11 +1,17 @@
-from pydantic_settings import BaseSettings
+import os
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     # App
     app_name: str = "SwarmForge"
     debug: bool = False
+
+    # Desktop mode
+    desktop_mode: bool = False
+    swarmforge_data_dir: str = os.path.expanduser("~/.swarmforge")
 
     # Database
     database_url: str = "postgresql+asyncpg://swarmforge:swarmforge@localhost:5432/swarmforge"

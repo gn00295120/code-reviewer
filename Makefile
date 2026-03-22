@@ -60,3 +60,18 @@ prod-migrate:
 
 prod-ps:
 	docker compose -f docker-compose.prod.yml ps
+
+# --- Desktop App ---
+
+desktop-dev:
+	cd frontend && npm run dev &
+	cd desktop && npm run tauri:dev
+
+desktop-build:
+	cd frontend && TAURI_BUILD=1 npm run build
+	cd desktop && npm run tauri:build
+
+desktop-backend:
+	cd backend && SWARMFORGE_DESKTOP_MODE=true \
+		DATABASE_URL=sqlite+aiosqlite:///$${HOME}/.swarmforge/swarmforge.db \
+		python3 -m uvicorn app.main:app --port 8000 --reload

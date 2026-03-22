@@ -21,15 +21,18 @@ from app.api.github_actions import router as github_actions_router
 from app.api.stats import router as stats_router
 from app.api.ws import router as ws_router
 from app.api.world_model import router as world_model_router
+from app.core.config import get_settings
 from app.core.websocket import ws_manager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    settings = get_settings()
+    if settings.desktop_mode:
+        from app.core.database import init_db
+        await init_db()
     await ws_manager.startup()
     yield
-    # Shutdown
     await ws_manager.shutdown()
 
 
@@ -41,9 +44,14 @@ app = FastAPI(
 )
 
 # CORS
+_settings = get_settings()
+origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+if _settings.desktop_mode:
+    origins.append("tauri://localhost")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,3 +1,4 @@
+import os as _os
 import uuid
 from datetime import datetime
 
@@ -13,10 +14,29 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+
+# ---------------------------------------------------------------------------
+# Dialect shim: support both PostgreSQL and SQLite (desktop mode)
+# ---------------------------------------------------------------------------
+
+if _os.environ.get("SWARMFORGE_DESKTOP_MODE"):
+    from sqlalchemy import JSON as JSONB
+    from sqlalchemy import String as _String
+
+    def UUID(as_uuid=True):
+        return _String(36)
+else:
+    from sqlalchemy.dialects.postgresql import JSONB, UUID
+
+
+def _enum(*values, **kwargs):
+    """Create Enum that works with both PostgreSQL and SQLite."""
+    if _os.environ.get("SWARMFORGE_DESKTOP_MODE"):
+        kwargs.pop("name", None)
+    return Enum(*values, **kwargs)
 
 
 class CodeReview(Base):
@@ -28,7 +48,7 @@ class CodeReview(Base):
     pr_number = Column(Integer, nullable=True)
     platform = Column(String(20), nullable=False, default="github")
     status = Column(
-        Enum("pending", "running", "completed", "failed", "cancelled", name="review_status"),
+        _enum("pending", "running", "completed", "failed", "cancelled", name="review_status"),
         default="pending",
         nullable=False,
     )
@@ -50,7 +70,7 @@ class ReviewFinding(Base):
     review_id = Column(UUID(as_uuid=True), ForeignKey("code_reviews.id", ondelete="CASCADE"), nullable=False)
     agent_role = Column(String(64), nullable=False)
     severity = Column(
-        Enum("high", "medium", "low", "info", name="finding_severity"),
+        _enum("high", "medium", "low", "info", name="finding_severity"),
         nullable=False,
     )
     file_path = Column(String(512), nullable=False)
@@ -96,7 +116,7 @@ class WorldModel(Base):
     total_steps = Column(Integer, default=0)
     total_cost_usd = Column(Numeric(10, 6), default=0)
     status = Column(
-        Enum("idle", "running", "paused", "completed", "error", name="world_model_status"),
+        _enum("idle", "running", "paused", "completed", "error", name="world_model_status"),
         default="idle",
     )
     created_at = Column(DateTime, default=datetime.utcnow)
