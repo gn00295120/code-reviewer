@@ -58,6 +58,11 @@ async fn start_backend(state: State<'_, SidecarProcesses>) -> Result<String, Str
         let python = find_python().ok_or("Python3 not found")?;
         let data = data_dir();
         std::fs::create_dir_all(&data).map_err(|e| e.to_string())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&data, std::fs::Permissions::from_mode(0o700));
+        }
 
         let db_path = data.join("swarmforge.db");
         let db_url = format!("sqlite+aiosqlite:///{}", db_path.display());

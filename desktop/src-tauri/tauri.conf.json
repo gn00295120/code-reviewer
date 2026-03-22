@@ -18,7 +18,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://localhost:* ws://localhost:* https://*.anthropic.com https://*.openai.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; img-src 'self' data: blob:"
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:8000 http://localhost:3000 ws://localhost:8000; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: blob:"
     }
   },
   "bundle": {

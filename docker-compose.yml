@@ -1,3 +1,5 @@
+# WARNING: Development use only. Do NOT use in production.
+# Use docker-compose.prod.yml for production deployments.
 services:
   postgres:
     image: postgres:16-alpine

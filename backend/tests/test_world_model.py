@@ -9,6 +9,7 @@ Tests cover:
 
 from __future__ import annotations
 
+import pathlib
 import uuid
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -603,17 +604,17 @@ class TestWorldModelAPI:
 class TestAlembicMigration:
     """Verify migration file structure without running against a real DB."""
 
+    _MIGRATION_PATH = str(
+        pathlib.Path(__file__).resolve().parent.parent / "alembic/versions/002_world_models.py"
+    )
+
     def test_migration_file_exists(self):
         import os
-        path = "/Users/longweiwang/github/code-reviewer/backend/alembic/versions/002_world_models.py"
-        assert os.path.exists(path)
+        assert os.path.exists(self._MIGRATION_PATH)
 
     def test_migration_has_correct_revision(self):
         import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "migration_002",
-            "/Users/longweiwang/github/code-reviewer/backend/alembic/versions/002_world_models.py",
-        )
+        spec = importlib.util.spec_from_file_location("migration_002", self._MIGRATION_PATH)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         assert mod.revision == "002"
@@ -621,10 +622,7 @@ class TestAlembicMigration:
 
     def test_migration_has_upgrade_and_downgrade(self):
         import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "migration_002",
-            "/Users/longweiwang/github/code-reviewer/backend/alembic/versions/002_world_models.py",
-        )
+        spec = importlib.util.spec_from_file_location("migration_002", self._MIGRATION_PATH)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         assert callable(mod.upgrade)

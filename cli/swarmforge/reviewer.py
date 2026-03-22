@@ -272,7 +272,7 @@ def run_standalone_review(
 
     if not github_token:
         # Try reading from .env in common locations
-        for env_path in [".env", "../.env", os.path.expanduser("~/.env")]:
+        for env_path in [".env", "../.env", os.path.expanduser("~/.swarmforge/.env")]:
             if os.path.exists(env_path):
                 with open(env_path) as f:
                     for line in f:
