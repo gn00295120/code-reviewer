@@ -3,7 +3,6 @@ import asyncio
 from collections import defaultdict
 from typing import Any
 
-import redis.asyncio as aioredis
 from fastapi import WebSocket
 
 from app.core.config import get_settings
@@ -16,12 +15,13 @@ class WebSocketManager:
 
     def __init__(self):
         self._rooms: dict[str, set[WebSocket]] = defaultdict(set)
-        self._redis: aioredis.Redis | None = None
+        self._redis: Any = None
         self._pubsub_task: asyncio.Task | None = None
 
     async def startup(self):
         if settings.desktop_mode:
             return  # No Redis needed in desktop mode
+        import redis.asyncio as aioredis
         self._redis = aioredis.from_url(settings.redis_url, decode_responses=True)
         self._pubsub_task = asyncio.create_task(self._listen_redis())
 

@@ -39,6 +39,7 @@ async def run_review_in_process(review_id: str):
 
         # Queue management — max 10 concurrent reviews
         if not enqueue_review(review_id):
+            review.status = "failed"
             review.error_message = "Queue full — retry later"
             await db.commit()
             return
@@ -58,17 +59,20 @@ async def run_review_in_process(review_id: str):
             })
 
             # Step 1: Fetch PR diff
-            await ws_manager.publish(f"review:{review_id}", "review:agent:started", {
-                "agent": "fetch_diff",
-                "status": "running",
-            })
+            fetch_started = {"agent": "fetch_diff", "status": "running"}
+            await ws_manager.publish(f"review:{review_id}", "review:agent:started", fetch_started)
+            await save_review_event(db, review_id, "review:agent:started", fetch_started)
+
             provider = get_vcs_provider(review.platform)
             pr_diff = provider.fetch_pr_diff(review.pr_url)
-            await ws_manager.publish(f"review:{review_id}", "review:agent:completed", {
+
+            fetch_completed = {
                 "agent": "fetch_diff",
                 "files_count": len(pr_diff.files),
                 "total_lines": pr_diff.total_additions + pr_diff.total_deletions,
-            })
+            }
+            await ws_manager.publish(f"review:{review_id}", "review:agent:completed", fetch_completed)
+            await save_review_event(db, review_id, "review:agent:completed", fetch_completed)
 
             # Step 2: Run LangGraph pipeline
             from agents.pipeline import run_review_pipeline
