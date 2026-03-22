@@ -38,13 +38,13 @@ def review_group():
 @click.option("--template-id", default=None, help="UUID of a review template to apply.")
 @click.option("--post", is_flag=True, default=False, help="Post findings as inline comments on the PR.")
 @click.option("--severity-threshold", default="low", help="Minimum severity to post (high/medium/low/info).")
-@click.option("--model", default="claude-sonnet-4-6-20250514", help="Anthropic model to use.")
+@click.option("--provider", default=None, help="Force a specific AI provider (codex/claude/gemini/opencode).")
 @click.option("--backend", is_flag=True, default=False, help="Force backend proxy mode (requires running backend).")
-def create(pr_url, template_id, post, severity_threshold, model, backend):
+def create(pr_url, template_id, post, severity_threshold, provider, backend):
     """Submit a PR/MR URL for review.
 
-    By default, runs standalone (no backend needed). Uses GITHUB_TOKEN and
-    ANTHROPIC_API_KEY environment variables directly.
+    Auto-detects AI CLI in priority order: codex -> claude -> gemini -> opencode.
+    No API key needed — uses your existing CLI subscriptions.
 
     Use --backend to route through the SwarmForge backend API instead.
     """
@@ -62,8 +62,15 @@ def create(pr_url, template_id, post, severity_threshold, model, backend):
             pr_url,
             post=post,
             severity_threshold=severity_threshold,
-            model=model,
+            provider_name=provider,
         )
+
+
+@review_group.command("providers")
+def providers():
+    """Show detected AI CLI providers and priority order."""
+    from ..providers import show_providers
+    show_providers()
 
 
 @review_group.command("list")

@@ -1,7 +1,8 @@
-"""Standalone review engine — runs locally using Claude Code SDK.
+"""Standalone review engine — runs locally using auto-detected AI CLI.
 
-Uses the user's Claude Code subscription (no API key needed).
-PyGithub fetches PR diffs, Claude Code SDK runs the review agents.
+Auto-detects installed AI CLIs in priority order: codex -> claude -> gemini -> opencode.
+Uses the user's existing subscriptions (no API key needed).
+PyGithub fetches PR diffs, AI CLI runs the review agents.
 """
 
 import asyncio
@@ -14,8 +15,8 @@ from github import Auth, Github
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.live import Live
-from rich.spinner import Spinner
+
+from .providers import detect_providers, get_best_provider, run_with_provider, show_providers
 
 console = Console()
 
@@ -142,34 +143,12 @@ def _build_diff_context(files: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
-async def _run_agent_claude_code(agent_role: str, diff_context: str) -> list[Finding]:
-    """Run a single review agent via Claude Code SDK (uses local subscription)."""
-    from claude_code_sdk import query, ClaudeCodeOptions, AssistantMessage
-
+async def _run_agent(agent_role: str, diff_context: str, provider) -> list[Finding]:
+    """Run a single review agent via the auto-detected AI CLI provider."""
     system_prompt = AGENT_PROMPTS[agent_role] + "\n\n" + FINDING_INSTRUCTION
     prompt = f"Review this PR diff and respond with ONLY the JSON findings:\n\n{diff_context}"
 
-    full_text = ""
-    try:
-        async for message in query(
-            prompt=prompt,
-            options=ClaudeCodeOptions(
-                system_prompt=system_prompt,
-                max_turns=1,
-                allowed_tools=[],
-            ),
-        ):
-            if not isinstance(message, AssistantMessage):
-                continue
-            for block in message.content:
-                if hasattr(block, "text"):
-                    full_text += block.text
-    except Exception as e:
-        # Claude Code SDK may raise on unknown event types (e.g. rate_limit_event)
-        # If we already collected text, continue with parsing
-        if not full_text:
-            console.print(f"  [yellow]Warning: {agent_role} agent failed: {e}[/yellow]")
-            return []
+    full_text = await run_with_provider(provider, system_prompt, prompt)
 
     if not full_text:
         return []
@@ -180,7 +159,10 @@ async def _run_agent_claude_code(agent_role: str, diff_context: str) -> list[Fin
     except json.JSONDecodeError:
         json_match = re.search(r'\{[\s\S]*"findings"[\s\S]*\}', full_text)
         if json_match:
-            result = json.loads(json_match.group())
+            try:
+                result = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                return []
         else:
             return []
 
@@ -279,9 +261,13 @@ def run_standalone_review(
     *,
     post: bool = False,
     severity_threshold: str = "low",
-    model: str = "claude-sonnet-4-6-20250514",
+    provider_name: str | None = None,
 ) -> ReviewResult:
-    """Run a standalone code review using Claude Code SDK (no API key needed)."""
+    """Run a standalone code review using auto-detected AI CLI.
+
+    Provider priority: codex -> claude -> gemini -> opencode
+    Override with provider_name to force a specific provider.
+    """
     github_token = os.environ.get("GITHUB_TOKEN", "")
 
     if not github_token:
@@ -316,9 +302,22 @@ def run_standalone_review(
 
     diff_context = _build_diff_context(pr_data["files"])
 
-    # Step 2: Run 5 agents sequentially via Claude Code SDK
-    # (Claude Code SDK spawns subprocesses, so we run sequentially to avoid overload)
-    console.print(f"\n[bold]Running 5 review agents via Claude Code...[/bold]")
+    # Step 2: Detect AI CLI provider
+    if provider_name:
+        providers = detect_providers()
+        provider = next((p for p in providers if p.name == provider_name), None)
+        if not provider:
+            console.print(f"[red]Error: Provider '{provider_name}' not found.[/red]")
+            show_providers()
+            raise SystemExit(1)
+    else:
+        provider = get_best_provider()
+
+    if not provider:
+        console.print("[red]Error: No AI CLI found. Install codex, claude, gemini, or opencode.[/red]")
+        raise SystemExit(1)
+
+    console.print(f"\n[bold]Running 5 review agents via {provider.name} ({provider.model})...[/bold]")
     result = ReviewResult(
         repo_name=pr_data["repo_name"],
         pr_number=pr_data["pr_number"],
@@ -327,7 +326,7 @@ def run_standalone_review(
 
     for role in AGENT_PROMPTS:
         console.print(f"  Running [bold]{role}[/bold] agent...", end="")
-        findings = asyncio.run(_run_agent_claude_code(role, diff_context))
+        findings = asyncio.run(_run_agent(role, diff_context, provider))
         result.findings.extend(findings)
         result.agents_completed += 1
         console.print(f" {len(findings)} findings")
