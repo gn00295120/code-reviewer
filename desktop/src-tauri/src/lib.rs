@@ -2,7 +2,7 @@ use std::process::{Child, Command};
 use std::sync::Mutex;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{Manager, State};
 
 struct SidecarProcesses {
     backend: Mutex<Option<Child>>,
