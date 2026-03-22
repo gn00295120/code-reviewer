@@ -135,8 +135,8 @@ swarmforge review findings <review-id> --severity high
 swarmforge review post-comments <review-id> --severity-threshold medium
 
 swarmforge template list
-swarmforge stats overview
-swarmforge health
+swarmforge misc stats overview
+swarmforge misc health
 
 # All command groups
 swarmforge --help
