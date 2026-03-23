@@ -37,24 +37,21 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-// API routes
-app.use("/api/reviews", reviewRoutes);
-app.use("/api/settings", settingsRoutes);
-
-// Health check
+// Health check (must be before static catch-all)
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", service: "swarmforge-desktop" });
 });
 
-// Serve built React app in production
+// API routes
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/settings", settingsRoutes);
+
+// Serve built React app in production (catch-all MUST be last)
 const distDir = path.join(__dirname, "..", "dist");
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
   app.get("*", (req, res) => {
-    if (
-      !req.path.startsWith("/api") &&
-      !req.path.startsWith("/ws")
-    ) {
+    if (!req.path.startsWith("/api") && !req.path.startsWith("/ws")) {
       res.sendFile(path.join(distDir, "index.html"));
     }
   });
