@@ -80,7 +80,6 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     title: "SwarmForge",
-    titleBarStyle: "hiddenInset",
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
