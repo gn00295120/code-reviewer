@@ -12,12 +12,22 @@ let mainWindow = null;
 // Find system node (not Electron's bundled one)
 function findSystemNode() {
   try {
-    // Source shell profile to get full PATH
+    // Use non-interactive login shell to avoid session restore noise
     const shell = process.env.SHELL || "/bin/zsh";
-    const nodePath = execSync(`${shell} -ilc "which node"`, { encoding: "utf8" }).trim();
-    if (nodePath) return nodePath;
+    const output = execSync(`${shell} -lc "which node"`, {
+      encoding: "utf8",
+      timeout: 5000,
+    });
+    // Take last non-empty line (skip any shell startup messages)
+    const lines = output.trim().split("\n").filter(Boolean);
+    const nodePath = lines[lines.length - 1].trim();
+    if (nodePath && nodePath.startsWith("/")) return nodePath;
   } catch {}
-  return "node"; // fallback
+  // Direct fallback
+  try {
+    return execSync("which node", { encoding: "utf8" }).trim();
+  } catch {}
+  return "node";
 }
 
 // Find tsx for running TypeScript
